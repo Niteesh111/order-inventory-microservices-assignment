@@ -5,6 +5,7 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "productbatch",uniqueConstraints = @UniqueConstraint(columnNames = "productId"))
@@ -21,6 +22,7 @@ public class Inventory {
     private Long productId;
     private Long quantity;
     private LocalDate expiryDate;
+    private OffsetDateTime updatedTime;
 
 
 }
