@@ -1,19 +1,20 @@
 package com.koerber.inventory_service.Impl;
 
 import ch.qos.logback.core.util.StringUtil;
+import com.koerber.inventory_service.Dto.InventoryUpdateRequest;
 import com.koerber.inventory_service.Entity.Inventory;
 import com.koerber.inventory_service.Repo.InventoryRepo;
 import com.koerber.inventory_service.Service.InventoryService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class InventoryServiceImpl implements InventoryService {
     @Autowired
     InventoryService inventoryService;
@@ -21,8 +22,8 @@ public class InventoryServiceImpl implements InventoryService {
     InventoryRepo inventoryRepo;
 
     @Override
-    public List<Inventory> getBatchesByProduct(String productId) {
-        if(StringUtil.notNullNorEmpty(productId)) {
+    public List<Inventory> getBatchesByProduct(Long productId) {
+        if(Objects.nonNull(productId)) {
             throw new IllegalArgumentException("Product ID cannot be null or empty");
         }
         Optional<Inventory> inventory = inventoryRepo.findInventoryDetailsByProductId(productId);
@@ -30,14 +31,29 @@ public class InventoryServiceImpl implements InventoryService {
         if (Optional.empty().isEmpty()){
             return new ArrayList<>();
         }
-              return   inventory.stream()
-                .map(inv -> new Inventory(inv.getInventoryId(), inv.getProductId(), inv.getQuantity(), inv.getExpiryDate()))
-                .toList();
+        return   inventory.stream().sorted(Comparator.comparing(Inventory::getExpiryDate)).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public void updateInventory(Inventory inventory) {
+    public void updateInventory(InventoryUpdateRequest inventoryUpdateRequest) {
+        log.info("Updating inventory for product: {} ", inventoryUpdateRequest.getProductId());
+        List<Inventory> inventoryListDB = inventoryService.getBatchesByProduct(inventoryUpdateRequest.getProductId());
+        List<Inventory> sortedInventoryList = inventoryListDB.stream().filter(inv-> inv.getQuantity()>0)
+                                              .sorted(Comparator.comparing(Inventory::getExpiryDate))
+                                              .collect(Collectors.toList());
+        Long quantityToDeduct = inventoryUpdateRequest.getQuantity();
+        log.info("Total quantity to deduct: {} ", quantityToDeduct);
+        for(Inventory inventory : sortedInventoryList){
+            if(inventory.getQuantity() >= quantityToDeduct){
+                inventory.setQuantity(inventory.getQuantity() - quantityToDeduct);
+                quantityToDeduct =0L;
+            } else {
+                quantityToDeduct -= inventory.getQuantity();
+                inventory.setQuantity(0L);
+            }
+            inventoryRepo.save(inventory);
+        }
 
     }
 }

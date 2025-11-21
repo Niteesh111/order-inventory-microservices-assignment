@@ -18,8 +18,8 @@ public class Inventory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long inventoryId;
-    @Column(unique = true)
     private Long productId;
+    private Long batchId;
     private Long quantity;
     private LocalDate expiryDate;
     private OffsetDateTime updatedTime;
