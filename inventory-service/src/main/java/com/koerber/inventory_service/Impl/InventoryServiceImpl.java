@@ -17,8 +17,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InventoryServiceImpl implements InventoryService {
     @Autowired
-    InventoryService inventoryService;
-    @Autowired
     InventoryRepo inventoryRepo;
 
     @Override
@@ -28,7 +26,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
         Optional<Inventory> inventory = inventoryRepo.findInventoryDetailsByProductId(productId);
 
-        if (Optional.empty().isEmpty()){
+        if (inventory.isEmpty()){
             return new ArrayList<>();
         }
         return   inventory.stream().sorted(Comparator.comparing(Inventory::getExpiryDate)).collect(Collectors.toList());
@@ -38,7 +36,11 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     public void updateInventory(InventoryUpdateRequest inventoryUpdateRequest) {
         log.info("Updating inventory for product: {} ", inventoryUpdateRequest.getProductId());
-        List<Inventory> inventoryListDB = inventoryService.getBatchesByProduct(inventoryUpdateRequest.getProductId());
+        Optional<Inventory> inventoryListDB = inventoryRepo.findInventoryDetailsByProductId(inventoryUpdateRequest.getProductId());
+        if (inventoryListDB.isEmpty()){
+            log.info("No inventory found for product: {} ", inventoryUpdateRequest.getProductId());
+            throw new IllegalArgumentException("No inventory found for product: " + inventoryUpdateRequest.getProductId());
+        }
         List<Inventory> sortedInventoryList = inventoryListDB.stream().filter(inv-> inv.getQuantity()>0)
                                               .sorted(Comparator.comparing(Inventory::getExpiryDate))
                                               .collect(Collectors.toList());

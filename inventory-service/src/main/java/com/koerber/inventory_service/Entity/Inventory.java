@@ -2,13 +2,13 @@ package com.koerber.inventory_service.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
+
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "productbatch",uniqueConstraints = @UniqueConstraint(columnNames = "productId"))
+@Table(name = "productbatch")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
