@@ -2,7 +2,11 @@ package com.koerber.order_service.Impl;
 
 import com.koerber.order_service.Dto.InventoryUpdateRequest;
 import com.koerber.order_service.Dto.OrderRequest;
+import com.koerber.order_service.Dto.OrderResponse;
 import com.koerber.order_service.Entity.Order;
+import com.koerber.order_service.ExceptionHandler.InsufficientInventoryException;
+import com.koerber.order_service.ExceptionHandler.InventoryServiceException;
+import com.koerber.order_service.ExceptionHandler.ProductNotExistException;
 import com.koerber.order_service.Repo.OrderRepo;
 import com.koerber.order_service.Service.OrderService;
 import lombok.extern.slf4j.Slf4j;
@@ -33,54 +37,77 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public Order placeOrder(OrderRequest req) {
-        req.getOrder().setCreatedDate(LocalDate.now());
-        Long quantity;
-        try {
-            log.info("Fetching inventory for product: {}", req.getOrder().getProductId());
-            quantity = restTemplate.getForObject(inventoryUrl + "/{productId}", Long.class, req.getOrder().getProductId());
-            log.info("Available inventory for product {}: {}", req.getOrder().getProductId(), quantity);
-            if (quantity == null) {
-                req.getOrder().setInventoryStatus("Failed");
-                orderRepo.save(req.getOrder());
-                log.info("Inventory service returned null for product: {}", req.getOrder().getProductId());
-                return req.getOrder();
-            }
-        } catch (RestClientException e) {
-            req.getOrder().setInventoryStatus("Failed");
-            orderRepo.save(req.getOrder());
-            log.info("Failed to fetch inventory for product {}: {}", req.getOrder().getProductId(), e.getMessage());
-            return req.getOrder();
-        }
+    public OrderResponse placeOrder(OrderRequest req) {
+        Order order = req.getOrder();
+        order.setCreatedDate(LocalDate.now());
+        Long availableQuantity = 0L;
+        //Fetch inventory
+        availableQuantity = getQuantityFromInventory(order.getProductId());
 
-        if (quantity < req.getOrder().getQuantity()) {
-            throw new IllegalStateException("Insufficient inventory for product: " + req.getOrder().getProductId());
-        }
+        //Validate inventory amount
+        handleInsufficientInventory(availableQuantity, order);
 
+        //Inventory update
+        handleInventoryUpdate(order);
+
+        //Persist order in DB
+        order.setInventoryStatus("UPDATED");
+        Order saved = orderRepo.save(order);
+        log.info("Order placed successfully. orderId={}, productId={}", saved.getOrderId(), saved.getProductId());
+
+        return OrderResponse.builder()
+                .orderId(saved.getOrderId())
+                .productId(saved.getProductId())
+                .quantity(saved.getQuantity())
+                .orderStatus("Order placed succesfully")
+                .build();
+    }
+
+    private void handleInventoryUpdate(Order order) {
         InventoryUpdateRequest inventoryUpdateRequest = InventoryUpdateRequest.builder()
-                                                        .productId(req.getOrder().getProductId())
-                                                        .quantity(req.getOrder().getQuantity())
+                                                        .productId(order.getProductId())
+                                                            .quantity(order.getQuantity())
                                                         .updatedTime(OffsetDateTime.now())
                                                         .build();
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<InventoryUpdateRequest> entity = new HttpEntity<>(inventoryUpdateRequest, headers);
 
-        HttpEntity<Object> entity = new HttpEntity<>(inventoryUpdateRequest, headers);
+        //Inventory update
         try {
-            log.info("Updating inventory for product: {}", req.getOrder().getProductId());
+            log.info("Updating inventory for product: {}", order.getProductId());
             restTemplate.postForEntity(inventoryUrl + "/update", entity, Void.class);
-            log.info("Inventory updated successfully for product: {}", req.getOrder().getProductId());
+            log.info("Inventory updated successfully for product: {}", order.getProductId());
         } catch (RestClientException e) {
-            req.getOrder().setInventoryStatus("Failed");
-            orderRepo.save(req.getOrder());
-            log.info("Inventory updation failed due to inventory service error: {}", e.getMessage());
-            return req.getOrder();
-        }
+            order.setInventoryStatus("FAILED");
+            orderRepo.save(order);
+            log.warn("Inventory update failed for product {}: {}", order.getProductId(), e.getMessage());
 
-        req.getOrder().setInventoryStatus("CREATED");
-        orderRepo.save(req.getOrder());
-        log.info("Order placed successfully for product: {}", req.getOrder().getProductId());
-        return req.getOrder();
+            throw new InventoryServiceException("Failed to update inventory for product " + order.getProductId(), e);
+        }
+    }
+
+    private void handleInsufficientInventory(Long availableQuantity, Order order) {
+        if (availableQuantity == null || availableQuantity < order.getQuantity()) {
+            order.setInventoryStatus("FAILED");
+            log.info("Insufficient inventory for product {}. Required: {}, Available: {}",order.getProductId(), order.getQuantity(), availableQuantity);
+
+
+            throw new InsufficientInventoryException("Insufficient inventory for product " + order.getProductId());
+        }
+    }
+
+    private Long getQuantityFromInventory(Long productId) {
+        try {
+            return restTemplate.getForObject(inventoryUrl + "/quantity/{productId}", Long.class, productId);
+        } catch (ProductNotExistException | RestClientException e) {
+            if (e.getMessage().contains("Product not found with id")) {
+                log.warn("Product not available in inventry {}: {}", productId, e.getMessage());
+                throw new ProductNotExistException("Product not available currently.", e);
+            } else {
+                log.warn("Failed to fetch inventory for product {}: {}", productId, e.getMessage());
+                throw new InventoryServiceException("Inventory service unavailable. Please try again later.", e);
+            }
+        }
     }
 }

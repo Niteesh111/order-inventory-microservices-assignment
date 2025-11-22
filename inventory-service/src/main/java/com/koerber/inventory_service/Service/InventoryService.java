@@ -8,4 +8,5 @@ import java.util.List;
 public interface InventoryService {
     List<Inventory> getBatchesByProduct(Long productId);
     void updateInventory(InventoryUpdateRequest inventoryUpdateRequest);
+    Long getQuantity(Long productId);
 }

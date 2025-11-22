@@ -40,4 +40,13 @@ public class InventoryController {
         inventoryService.updateInventory(inventoryUpdateRequest);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
+
+    @GetMapping("/quantity/{productId}")
+    public ResponseEntity<Long> getQuantity(@PathVariable Long productId) {
+        if (productId == null || productId == 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+        Long quantity = inventoryService.getQuantity(productId);
+        return ResponseEntity.ok(quantity);
+    }
 }
