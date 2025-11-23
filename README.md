@@ -56,9 +56,9 @@ The project consists of two Spring Boot microservices:
 
 2. **Order Service**(Port: 8081)
 
-   | Method  | Endpoint  |  Description |
-       |---|---|---|
-   |  POST |  /order/create |  Places an order and updates inventory |
+    | Method  | Endpoint  |  Description |
+    |---|---|---|
+    |  POST |  /order/create |  Places an order and updates inventory |
 
 * **Place an Order**
 
