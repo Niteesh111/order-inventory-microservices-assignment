@@ -21,11 +21,11 @@ The project consists of two Spring Boot microservices:
 ## API Endpoints
 1. **Inventory Service**(Port: 8082)
 
-   |  Method | Endpoint  | Description  |
-       |---|---|---|
-   |  GET |  /inventory/{productId} |  Returns sorted batches by expiry date |
-   | GET  |  /inventory/quantity/{productId} |  Returns available quantity |
-   |  POST | /inventory/update  | Updates inventory based on order  |
+    |  Method | Endpoint  | Description  |
+    |---|---|---|
+    |  GET |  /inventory/{productId} |  Returns sorted batches by expiry date |
+    | GET  |  /inventory/quantity/{productId} |  Returns available quantity |
+    |  POST | /inventory/update  | Updates inventory based on order  |
 
     * **Get inventory batches sorted by expiry date**
 
