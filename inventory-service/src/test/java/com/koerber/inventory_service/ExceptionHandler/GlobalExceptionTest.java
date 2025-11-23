@@ -52,4 +52,15 @@ public class GlobalExceptionTest {
         Map<String, Object> body = response.getBody();
         assertEquals(500, body.get("status"));
     }
+
+    @Test
+    void handleProductNotExistException() {
+        ProductNotExistException ex = mock(ProductNotExistException.class);
+        when(ex.getMessage()).thenReturn("No static resource h2-console for request '/h2-console'.");
+
+        ResponseEntity<Map<String, Object>> response =globalException.handleProductNotExistException(ex);
+
+        Map<String, Object> body = response.getBody();
+        assertEquals(404, body.get("status"));
+    }
 }

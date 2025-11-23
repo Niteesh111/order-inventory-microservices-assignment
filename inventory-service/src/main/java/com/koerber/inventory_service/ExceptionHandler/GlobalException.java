@@ -40,4 +40,11 @@ public class GlobalException {
         Map<String, Object> body = getMapDetails(HttpStatus.NOT_FOUND.value(), "Not Found", ex.getMessage());
         return ResponseEntity.status(HttpStatus.OK).body(body);
     }
+
+    @ExceptionHandler(ProductNotExistException.class)
+    public ResponseEntity<Map<String, Object>> handleProductNotExistException(ProductNotExistException ex) {
+        log.error("Product not found", ex);
+        Map<String, Object> body = getMapDetails(HttpStatus.NOT_FOUND.value(), "Not Found", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.OK).body(body);
+    }
 }
